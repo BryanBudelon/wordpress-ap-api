@@ -1,61 +1,100 @@
-const express = require("express");
+const express = require('express');
+const mysql = require('mysql');
+
 const app = express();
-const port = process.env.PORT || 3001;
+const port = 3010; // Choose the desired port number
 
-app.get("/", (req, res) => res.type('html').send(html));
+// MySQL database connection configuration
+const connection = mysql.createConnection({
+  host: '149.28.189.125',
+  user: 'awkdrhpgbw',
+  password: '9YKC2thkPk',
+  database: 'awkdrhpgbw',
+});
 
-const server = app.listen(port, () => console.log(`Example app listening on port ${port}!`));
+let baseURL = 'https://studdog.app/wp-content'; 
 
-server.keepAliveTimeout = 120 * 1000;
-server.headersTimeout = 120 * 1000;
+// Connect to the MySQL database
+  connection.connect((err) => {
+    if (err) {
+      console.error('Error connecting to the database: ', err);
+      return;
+    }
+    console.log('Connected to the database');
+  });
 
-const html = `
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Hello from Render!</title>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-    <script>
-      setTimeout(() => {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          disableForReducedMotion: true
-        });
-      }, 500);
-    </script>
-    <style>
-      @import url("https://p.typekit.net/p.css?s=1&k=vnd5zic&ht=tk&f=39475.39476.39477.39478.39479.39480.39481.39482&a=18673890&app=typekit&e=css");
-      @font-face {
-        font-family: "neo-sans";
-        src: url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("woff2"), url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("woff"), url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("opentype");
-        font-style: normal;
-        font-weight: 700;
+  // Define a route to fetch data
+  app.get('/api/posts', (req, res) => {
+    const firstQuery = "SELECT post_name FROM wp_posts WHERE post_type = 'rz_listing' AND post_status = 'publish'";
+    
+    connection.query(firstQuery, (error, results) => {
+      if (error) {
+        console.error('Error executing the first query: ', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+        return;
       }
-      html {
-        font-family: neo-sans;
-        font-weight: 700;
-        font-size: calc(62rem / 16);
-      }
-      body {
-        background: white;
-      }
-      section {
-        border-radius: 1em;
-        padding: 1em;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        margin-right: -50%;
-        transform: translate(-50%, -50%);
-      }
-    </style>
-  </head>
-  <body>
-    <section>
-      Hello from Render!
-    </section>
-  </body>
-</html>
-`
+      
+      const postNames = results.map((row) => row.post_name);
+      
+      const secondQuery = `SELECT * FROM wp_postmeta WHERE post_id IN (SELECT ID FROM wp_posts WHERE post_type = 'rz_listing' AND post_status = 'publish' AND post_name IN (${postNames.map(() => '?').join(',')}))`;
+      
+      connection.query(secondQuery, postNames, (error, results) => {
+        if (error) {
+          console.error('Error executing the second query: ', error);
+          res.status(500).json({ error: 'Internal Server Error' });
+          return;
+        }
+        
+        res.json(results);
+      });
+    });
+  });
+
+
+  app.get('/api/posts/:postID', (req, res) => {
+    let postID = req.params.postID;
+
+    let sql = `SELECT meta_value FROM wp_postmeta WHERE post_id = ${postID} AND meta_key = 'rz_gallery'`;
+
+    connection.query(sql, function(err, result) {
+        if (err) throw err;
+
+        let metaValue = result[0].meta_value;
+
+        let galleryImages;
+        try {
+            galleryImages = JSON.parse(metaValue);
+        } catch (error) {
+            console.error('Error parsing meta_value JSON: ', error);
+            return res.status(500).json({ error: 'Error parsing meta_value JSON' });
+        }
+
+        let imageIDs = galleryImages.map(item => item.id);
+
+        let imageLinks = [];
+        for(let i = 0; i < imageIDs.length; i++) {
+            let imageID = imageIDs[i];
+            let sql = `SELECT guid FROM wp_posts WHERE ID = ${imageID} AND post_type = 'attachment'`;
+            connection.query(sql, function(err, result) {
+                if (err) throw err;
+
+                if (result.length > 0) {
+                    let filePath = result[0].guid;
+                    let imageURL = baseURL + filePath.split('wp-content')[1];
+                    imageLinks.push(imageURL);
+                }
+
+                if (i == imageIDs.length - 1) {
+                    res.send(imageLinks);
+                }
+            });
+        }
+    });
+});
+
+  
+
+  // Start the server
+  app.listen(port, () => {
+    console.log(`Server listening on port ${port}`);
+  });
