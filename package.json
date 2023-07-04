@@ -8,8 +8,7 @@
   "license": "MIT",
   "private": false,
   "scripts": {
-    "start": "node app.js",
-    "build": "webpack --config webpack.config.js"
+    "start": "node app.js"
   },
   "dependencies": {
     "express": "^4.18.2"
