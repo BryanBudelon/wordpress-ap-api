@@ -1,8 +1,11 @@
 const express = require('express');
 const mysql = require('mysql');
 
+const cors = require('cors');
+
 const app = express();
-const port = 3010; // Choose the desired port number
+app.use(cors());
+const port = 3000; // Choose the desired port number
 
 // MySQL database connection configuration
 const connection = mysql.createConnection({
@@ -91,8 +94,6 @@ let baseURL = 'https://studdog.app/wp-content';
         }
     });
 });
-
-  
 
   // Start the server
   app.listen(port, () => {
