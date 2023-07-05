@@ -13,6 +13,7 @@ const connection = mysql.createConnection({
   user: 'awkdrhpgbw',
   password: '9YKC2thkPk',
   database: 'awkdrhpgbw',
+  connectTimeout: 10000
 });
 
 let baseURL = 'https://studdog.app/wp-content'; 
