@@ -5,7 +5,7 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors());
-const port = 3000; // Choose the desired port number
+const port = 4020; // Choose the desired port number
 
 const pool = mysql.createPool({
   connectionLimit: 10,
